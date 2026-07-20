@@ -656,6 +656,14 @@
       <div id="logHistory"><p class="empty">Nenhum registro ainda. Sua primeira sessão aparece aqui.</p></div>
     </div>
 
+    <div class="card">
+      <h2>Backup do histórico</h2>
+      <p class="meta">Exporte de vez em quando e guarde em algum lugar seguro (ex: nota no celular). Se algo der errado no app, você importa de volta e não perde nada.</p>
+      <button class="btn ghost full" id="exportBackupBtn" style="margin-top:8px;">Exportar histórico (copiar)</button>
+      <textarea id="backupTextarea" style="width:100%; margin-top:8px; min-height:90px; display:none; font-size:11px;" placeholder="Cole aqui um backup exportado antes pra restaurar"></textarea>
+      <button class="btn ghost full" id="importBackupBtn" style="margin-top:8px;">Importar histórico (colar)</button>
+    </div>
+
     <button class="btn ghost full" id="clearBtn">Apagar todo o histórico</button>
 
   </section>
@@ -809,7 +817,7 @@
 
   const EXERCISES = [
     { id:'ex0', block:'Cardio', name:'Bicicleta ergométrica', target:'1x 15 min', met:3.5,
-      sets:1, repsTarget:900, restSeconds:0, startWeight:0, increment:60, bodyweight:true, isTime:true, countdownMode:true,
+      sets:1, repsTarget:900, restSeconds:0, startWeight:0, increment:300, bodyweight:true, isTime:true, countdownMode:true,
       muscle:'Sistema cardiovascular, quadríceps e posteriores de coxa (esforço leve)',
       objective:'Aquecimento cardiovascular e ativação geral antes da parte de força',
       grip:'Sentada, banco ajustado na altura do quadril, joelho com leve flexão no pedal mais baixo (nunca travado)',
@@ -819,8 +827,8 @@
       link:'https://www.youtube.com/watch?v=I34TObzEtTY',
       regions:['front-quad','back-glute'] },
 
-    { id:'ex1', block:'Circuito', name:'Agachamento livre (rack)', target:'4x 8-12', met:5.0,
-      sets:4, repsTarget:10, restSeconds:90, startWeight:20, increment:2, bodyweight:false,
+    { id:'ex1', block:'Circuito', name:'Agachamento livre (rack)', target:'4x 10-15', met:5.0,
+      sets:4, repsTarget:10, restSeconds:90, startWeight:20, increment:1, bodyweight:false,
       muscle:'Quadríceps, glúteos e posteriores de coxa',
       objective:'Base de força para membros inferiores',
       grip:'Barra apoiada na parte de trás dos ombros (trapézio), mãos um pouco mais abertas que a largura dos ombros, pegada pronada firme',
@@ -829,7 +837,7 @@
       split:'A',
       link:'https://www.youtube.com/watch?v=nrM8zB5-gtE',
       regions:['front-quad','back-glute','back-hamstring'] },
-    { id:'ex2', block:'Circuito', name:'Supino reto com halteres', target:'3x 8-12', met:5.0,
+    { id:'ex2', block:'Circuito', name:'Supino reto com halteres', target:'3x 10-15', met:5.0,
       sets:3, repsTarget:10, restSeconds:75, startWeight:6, increment:1, bodyweight:false,
       muscle:'Peitoral, deltoide anterior (frente do ombro) e tríceps',
       objective:'Força e volume de peitoral',
@@ -840,7 +848,7 @@
       link:'https://www.youtube.com/watch?v=tDxKGeY-hjQ',
       regions:['front-chest','front-shoulder'] },
     { id:'ex3', block:'Circuito', name:'Puxada frontal (estação de polia dupla)', target:'3x 10-15', met:4.0,
-      sets:3, repsTarget:12, restSeconds:60, startWeight:25, increment:2.5, bodyweight:false,
+      sets:3, repsTarget:10, restSeconds:60, startWeight:25, increment:1, bodyweight:false,
       muscle:'Latíssimo do dorso (as "asas" das costas), bíceps como auxiliar',
       objective:'Largura e força de costas',
       grip:'Pegada pronada, mãos um pouco mais abertas que os ombros',
@@ -850,7 +858,7 @@
       link:'https://www.youtube.com/watch?v=mPmfwbc_svw',
       regions:['back-upperback'] },
     { id:'ex4', block:'Circuito', name:'Desenvolvimento de ombro (aparelho ou halteres)', target:'3x 10-15', met:5.0,
-      sets:3, repsTarget:12, restSeconds:60, startWeight:5, increment:1, bodyweight:false,
+      sets:3, repsTarget:10, restSeconds:60, startWeight:20, increment:1, bodyweight:false,
       muscle:'Deltoide (ombro), tríceps como auxiliar',
       objective:'Força e definição de ombro. Escolha UM dos dois — aparelho OU halteres, não os dois no mesmo dia (seria volume redundante pro mesmo músculo)',
       grip:'Aparelho: sentada, encosto ajustado, pegada nos punhos do aparelho, empurrar pra cima. Halteres: pegada pronada, halteres na altura dos ombros, cotovelos apontando pra frente/lateral',
@@ -859,8 +867,8 @@
       split:'A',
       link:'https://www.youtube.com/watch?v=eufDL9MmF8A',
       regions:['front-shoulder'] },
-    { id:'ex10', block:'Circuito', name:'Levantamento terra romeno (barra)', target:'3x 8-12', met:6.0,
-      sets:3, repsTarget:10, restSeconds:90, startWeight:20, increment:2, bodyweight:false,
+    { id:'ex10', block:'Circuito', name:'Levantamento terra romeno (barra)', target:'3x 10-15', met:6.0,
+      sets:3, repsTarget:10, restSeconds:90, startWeight:20, increment:1, bodyweight:false,
       muscle:'Posteriores de coxa (isquiotibiais), glúteo e eretores da espinha (lombar como estabilizador)',
       objective:'Força de cadeia posterior — complementa o agachamento (que é mais quadríceps)',
       grip:'Pegada pronada na barra, mãos um pouco mais abertas que os ombros, barra sempre próxima ao corpo',
@@ -1225,22 +1233,54 @@
     document.getElementById('modalConfirm').addEventListener('click', ()=>{ root.innerHTML=''; onConfirm(); });
   }
 
+  // Escada de dupla progressão: sobe reps (10→12→15) com a mesma carga antes de
+  // sugerir o próximo salto de peso. Só depois de fechar 15 reps limpo em todas
+  // as séries é que sugere +1kg (menor peça disponível) e volta pra 10 reps.
+  const REP_LADDER = [10,12,15];
+  const LADDER_EXERCISE_IDS = ['ex1','ex2','ex3','ex4','ex10'];
+
   function computeSuggestion(ex, hist){
     const entries = hist[ex.id] || [];
+    const onLadder = LADDER_EXERCISE_IDS.includes(ex.id);
+
     if(entries.length === 0){
-      return { value: ex.bodyweight ? ex.repsTarget : ex.startWeight, badge:'new',
+      return {
+        value: ex.bodyweight ? ex.repsTarget : ex.startWeight,
+        repTarget: onLadder ? REP_LADDER[0] : ex.repsTarget,
+        badge:'new',
         note: ex.bodyweight ? 'Meta inicial pra testar — ajuste na 1ª série se sentir muito fácil ou difícil.'
                              : 'Carga inicial sugerida — ajuste na 1ª série se sentir muito leve ou pesada.' };
     }
+
     const last = entries[0];
+
+    if(onLadder){
+      const lastRepTarget = REP_LADDER.includes(last.repTarget) ? last.repTarget : REP_LADDER[0];
+      const metThis = last.minReps != null && last.minReps >= lastRepTarget;
+      if(metThis){
+        const idx = REP_LADDER.indexOf(lastRepTarget);
+        if(idx < REP_LADDER.length - 1){
+          const nextReps = REP_LADDER[idx+1];
+          return { value: last.weight, repTarget: nextReps, badge:'reps-up',
+            note: `Bateu ${lastRepTarget} reps limpo em todas as séries — hoje o alvo é ${nextReps} reps, mesma carga (${last.weight}kg).` };
+        }
+        const nextWeight = last.weight + ex.increment;
+        return { value: nextWeight, repTarget: REP_LADDER[0], badge:'up',
+          note: `Bateu 15 reps limpo — hora de subir pra ${nextWeight}kg e voltar pra ${REP_LADDER[0]} reps.` };
+      }
+      return { value: last.weight, repTarget: lastRepTarget, badge:'hold',
+        note: `Mantendo ${last.weight}kg até fechar ${lastRepTarget} reps limpo em todas as séries.` };
+    }
+
+    // Lógica antiga — usada só pra prancha e cardio (metas de tempo, não de carga em peça)
     const targetForLast = ex.bodyweight ? last.weight : ex.repsTarget;
     const metThis = last.minReps != null && last.minReps >= targetForLast;
     if(metThis){
-      return { value: last.weight + ex.increment, badge:'up',
+      return { value: last.weight + ex.increment, repTarget: ex.repsTarget, badge:'up',
         note: ex.bodyweight ? (ex.isTime ? 'Bateu o tempo em todas as séries — hora de aumentar.' : 'Bateu as reps em todas as séries — hora de aumentar.')
                              : 'Bateu a meta em todas as séries — hora de subir.' };
     }
-    return { value: last.weight, badge:'hold',
+    return { value: last.weight, repTarget: ex.repsTarget, badge:'hold',
       note: 'Mantendo até fechar a meta de repetições em todas as séries.' };
   }
 
@@ -1276,12 +1316,15 @@ function renderExerciseCard(ex, hist){
     const st = sessionState[ex.id];
     const suggestion = computeSuggestion(ex, hist);
 
-    const badgeClass = suggestion.badge === 'up' ? 'up' : (suggestion.badge === 'new' ? 'new' : 'hold');
-    const badgeIcon = suggestion.badge === 'up' ? '🔼' : (suggestion.badge === 'new' ? '🆕' : '➡️');
+    const badgeClass = suggestion.badge === 'up' ? 'up' : (suggestion.badge === 'new' ? 'new' : (suggestion.badge === 'reps-up' ? 'up' : 'hold'));
+    const badgeIcon = suggestion.badge === 'up' ? '🔼' : (suggestion.badge === 'new' ? '🆕' : (suggestion.badge === 'reps-up' ? '🔁' : '➡️'));
     const unit = ex.bodyweight ? (ex.isTime ? 's' : ' reps') : 'kg';
+    const repsUnit = ex.bodyweight ? '' : (' — ' + suggestion.repTarget + ' reps');
     const badgeText = suggestion.badge === 'up'
-      ? `Sugestão: subir para ${suggestion.value}${unit}`
-      : (suggestion.badge === 'new' ? `Sugestão inicial: ${suggestion.value}${unit}` : `Manter: ${suggestion.value}${unit}`);
+      ? `Sugestão: subir para ${suggestion.value}${unit}${ex.bodyweight ? '' : repsUnit}`
+      : (suggestion.badge === 'new' ? `Sugestão inicial: ${suggestion.value}${unit}${ex.bodyweight ? '' : repsUnit}`
+        : (suggestion.badge === 'reps-up' ? `Mesma carga (${suggestion.value}kg) — hoje ${suggestion.repTarget} reps`
+          : `Manter: ${suggestion.value}${unit}${ex.bodyweight ? '' : repsUnit}`));
 
     let dotsHTML = '';
     for(let i=1; i<=ex.sets; i++){
@@ -1339,7 +1382,7 @@ function renderExerciseCard(ex, hist){
     } else {
       bodyHTML = `<div class="set-form">
         <div class="field"><label>Peso (kg)</label><input type="number" step="0.5" min="0" inputmode="decimal" data-set-weight="${ex.id}" value="${suggestion.value}"></div>
-        <div class="field"><label>Reps feitas</label><input type="number" step="1" min="0" inputmode="numeric" data-set-reps="${ex.id}" value="${ex.repsTarget}"></div>
+        <div class="field"><label>Reps feitas</label><input type="number" step="1" min="0" inputmode="numeric" data-set-reps="${ex.id}" value="${suggestion.repTarget}"></div>
         <button class="btn primary" data-complete-set="${ex.id}">Concluir série ${st.currentSet}</button>
       </div>
       <button class="skip-set-btn" data-skip-set="${ex.id}">pular esta série</button>`;
@@ -1429,15 +1472,19 @@ function renderExerciseCard(ex, hist){
     if(validSets.length > 0){
       const hist = await loadHistory();
       const attempted = computeSuggestion(ex, hist);
-      st.targetUsed = ex.bodyweight ? attempted.value : ex.repsTarget;
+      st.targetUsed = attempted.repTarget;
       if(!hist[exId]) hist[exId] = [];
       const minReps = Math.min(...validSets.map(l=>l.reps));
       const weightUsed = ex.bodyweight ? attempted.value : validSets[validSets.length-1].weight;
-      hist[exId].unshift({ date: todayInfo().iso, weight: weightUsed, minReps: minReps, sets: validSets.length });
+      const today = todayInfo().iso;
+      // Um único registro por exercício por dia (exceto cardio, que tem storage próprio
+      // e permite múltiplas entradas). Se já existe um registro de hoje, ele é substituído.
+      hist[exId] = hist[exId].filter(e => e.date !== today);
+      hist[exId].unshift({ date: today, weight: weightUsed, minReps: minReps, sets: validSets.length, repTarget: attempted.repTarget });
       await saveHistory(hist);
       historyCache = hist;
     } else {
-      st.targetUsed = ex.bodyweight ? null : ex.repsTarget;
+      st.targetUsed = ex.repsTarget;
     }
 
     const row = document.querySelector(`.ex-input-row[data-ex-id="${exId}"]`);
@@ -1862,6 +1909,51 @@ function renderExerciseCard(ex, hist){
     running = false; seconds = 0;
     document.getElementById('timerDisplay').textContent = '00:00';
     document.getElementById('timerToggle').textContent = 'Iniciar';
+  });
+
+  // ---------- backup manual (exportar/importar histórico completo) ----------
+  async function gatherBackup(){
+    const [hist, logs, cardio, bw] = await Promise.all([
+      loadHistory(), loadLogs(), loadCardioLogs(), loadBodyWeights()
+    ]);
+    return { version:1, exportedAt: new Date().toISOString(),
+      [HISTORY_KEY]: hist, [STORAGE_KEY]: logs, [CARDIO_KEY]: cardio, [BODYWEIGHT_KEY]: bw };
+  }
+  document.getElementById('exportBackupBtn').addEventListener('click', async ()=>{
+    const backup = await gatherBackup();
+    const json = JSON.stringify(backup);
+    const ta = document.getElementById('backupTextarea');
+    ta.style.display = 'block';
+    ta.value = json;
+    ta.focus(); ta.select();
+    try{
+      await navigator.clipboard.writeText(json);
+      alert('Backup copiado pra área de transferência. Cole em algum lugar seguro (nota, e-mail, etc.).');
+    }catch(e){
+      alert('Não deu pra copiar automaticamente — o texto está selecionado no campo abaixo, copie manualmente.');
+    }
+  });
+  document.getElementById('importBackupBtn').addEventListener('click', async ()=>{
+    const ta = document.getElementById('backupTextarea');
+    if(ta.style.display === 'none'){ ta.style.display = 'block'; ta.focus(); return; }
+    const raw = ta.value.trim();
+    if(!raw){ alert('Cole o JSON do backup no campo antes de importar.'); return; }
+    let parsed;
+    try{ parsed = JSON.parse(raw); }
+    catch(e){ alert('Esse texto não parece um backup válido (JSON inválido).'); return; }
+    if(!confirm('Importar vai substituir o histórico atual pelo do backup. Continuar?')) return;
+    try{
+      if(parsed[HISTORY_KEY]) await saveHistory(parsed[HISTORY_KEY]);
+      if(parsed[STORAGE_KEY]) await saveLogs(parsed[STORAGE_KEY]);
+      if(parsed[CARDIO_KEY]) await saveCardioLogs(parsed[CARDIO_KEY]);
+      if(parsed[BODYWEIGHT_KEY]) await saveBodyWeights(parsed[BODYWEIGHT_KEY]);
+      invalidateBodyWeightCache();
+      alert('Histórico restaurado com sucesso.');
+      ta.value=''; ta.style.display='none';
+      renderDash();
+    }catch(e){
+      alert('Erro ao importar: ' + e.message);
+    }
   });
 
   async function addLogEntry(entry){
