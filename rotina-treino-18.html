@@ -2077,7 +2077,7 @@ function renderExerciseCard(ex, hist){
 
       const pills = entries.slice(0,6).reverse().map((e, i, arr)=>{
         const isLatest = i === arr.length-1;
-        return `<span class="evo-pill${isLatest ? ' latest' : ''}">${e.weight}kg×${e.reps}</span>`;
+        return `<span class="evo-pill${isLatest ? ' latest' : ''}">${e.weight}kg×${e.minReps}</span>`;
       }).join('');
 
       const card = document.createElement('div');
@@ -2559,10 +2559,79 @@ function renderExerciseCard(ex, hist){
     });
   })();
 
-  renderSession();
-  renderDash();
-  renderCardioTodayList();
-  initMusicPlayer();
+  // ---------- semente de dados: restaura as sessões de 13, 17 e 20/07/2026 ----------
+  // Só escreve se o armazenamento estiver vazio (não sobrescreve nada que já exista
+  // no dispositivo, por segurança).
+  const SEED_DATA = {
+    [HISTORY_KEY]: {
+      "ex1": [
+        {"date":"2026-07-20","weight":30,"minReps":10,"sets":4,"repTarget":12},
+        {"date":"2026-07-17","weight":26,"minReps":12,"sets":4,"repTarget":10},
+        {"date":"2026-07-13","weight":20,"minReps":12,"sets":4,"repTarget":10}
+      ],
+      "ex2": [
+        {"date":"2026-07-20","weight":9,"minReps":12,"sets":3,"repTarget":15},
+        {"date":"2026-07-17","weight":9,"minReps":12,"sets":3,"repTarget":12},
+        {"date":"2026-07-13","weight":6,"minReps":12,"sets":3,"repTarget":10}
+      ],
+      "ex3": [
+        {"date":"2026-07-20","weight":30,"minReps":12,"sets":3,"repTarget":12},
+        {"date":"2026-07-17","weight":33,"minReps":12,"sets":3,"repTarget":10},
+        {"date":"2026-07-13","weight":25,"minReps":12,"sets":3,"repTarget":10}
+      ],
+      "ex4": [
+        {"date":"2026-07-20","weight":20,"minReps":12,"sets":3,"repTarget":12},
+        {"date":"2026-07-17","weight":20,"minReps":12,"sets":3,"repTarget":10},
+        {"date":"2026-07-13","weight":20,"minReps":12,"sets":3,"repTarget":10}
+      ],
+      "ex10": [
+        {"date":"2026-07-20","weight":30,"minReps":10,"sets":3,"repTarget":10},
+        {"date":"2026-07-17","weight":30,"minReps":12,"sets":3,"repTarget":10},
+        {"date":"2026-07-13","weight":20,"minReps":12,"sets":3,"repTarget":10}
+      ],
+      "ex7": [
+        {"date":"2026-07-20","weight":42,"minReps":41,"sets":3,"repTarget":35},
+        {"date":"2026-07-17","weight":42,"minReps":41,"sets":3,"repTarget":35},
+        {"date":"2026-07-13","weight":32,"minReps":31,"sets":3,"repTarget":35}
+      ]
+    },
+    [STORAGE_KEY]: [
+      {"date":"2026-07-20","day":"segunda-feira","worked":"Bicicleta 900s · Supino 9kg×12 · Agachamento 30kg×12 · Puxada 30kg×12 · Ombro 20kg(10x2)×12 · Terra romeno 30kg×10 · Prancha 42s","difficulty":"—","ready":"—","next":"","skipped":false,"duration":1860,"kcal":188},
+      {"date":"2026-07-17","day":"sexta-feira","worked":"Bicicleta 900s · Supino 9kg×10 · Agachamento 26kg×12 · Puxada 33kg×12 · Ombro 20kg(10x2)×12 · Terra romeno 30kg×10 · Prancha 42s","difficulty":"—","ready":"—","next":"","skipped":false,"duration":1920,"kcal":197},
+      {"date":"2026-07-13","day":"segunda-feira","worked":"Bicicleta 900s · Agachamento 20kg×12 · Supino 6kg×12 · Puxada 25kg×12 · Ombro 20kg(10x2)×12 · Terra romeno 20kg×12 · Prancha 32s","difficulty":"—","ready":"—","next":"","skipped":false,"duration":1620,"kcal":null}
+    ],
+    [BODYWEIGHT_KEY]: [
+      {"date":"2026-07-13","weight":86.5}
+    ]
+  };
+
+  async function seedIfEmpty(){
+    try{
+      const hist = await loadHistory();
+      if(!hist || Object.keys(hist).length === 0){
+        await saveHistory(SEED_DATA[HISTORY_KEY]);
+      }
+    }catch(e){ /* segue mesmo se falhar */ }
+    try{
+      const logs = await loadLogs();
+      if(!logs || logs.length === 0){
+        await saveLogs(SEED_DATA[STORAGE_KEY]);
+      }
+    }catch(e){ /* segue mesmo se falhar */ }
+    try{
+      const bw = await loadBodyWeights();
+      if(!bw || bw.length === 0){
+        await saveBodyWeights(SEED_DATA[BODYWEIGHT_KEY]);
+      }
+    }catch(e){ /* segue mesmo se falhar */ }
+  }
+
+  seedIfEmpty().then(()=>{
+    renderSession();
+    renderDash();
+    renderCardioTodayList();
+    initMusicPlayer();
+  });
 
   // registrar service worker pra PWA funcionar offline e ser instalável
   if('serviceWorker' in navigator){
