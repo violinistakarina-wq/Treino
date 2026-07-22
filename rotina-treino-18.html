@@ -817,7 +817,7 @@
 
   const EXERCISES = [
     { id:'ex0', block:'Cardio', name:'Bicicleta ergométrica', target:'1x 15 min', met:3.5,
-      sets:1, repsTarget:900, restSeconds:0, startWeight:0, increment:300, bodyweight:true, isTime:true, countdownMode:true,
+      sets:1, repsTarget:900, restSeconds:0, startWeight:0, increment:300, bodyweight:true, isTime:true,
       muscle:'Sistema cardiovascular, quadríceps e posteriores de coxa (esforço leve)',
       objective:'Aquecimento cardiovascular e ativação geral antes da parte de força',
       grip:'Sentada, banco ajustado na altura do quadril, joelho com leve flexão no pedal mais baixo (nunca travado)',
@@ -1532,7 +1532,7 @@ function renderExerciseCard(ex, hist){
 
       const setsHTML = st.log.map((l,i)=>{
         if(l.skipped) return `<div class="set-log-row"><span>Série ${i+1}</span><span>pulada</span></div>`;
-        const txt = ex.bodyweight ? (ex.isTime ? `${l.reps}s` : `${l.reps} reps`) : `${l.weight}kg × ${l.reps} reps`;
+        const txt = ex.bodyweight ? (ex.isTime ? `${l.reps}s` : `${l.reps} reps`) : `${l.weight}kg × ${l.reps} reps${l.durationSec ? ` — ${l.durationSec}s` : ''}`;
         const flag = l.tempoFlag === 'fast' ? '<span class="tempo-flag fast">rápida demais</span>' : (l.tempoFlag === 'slow' ? '<span class="tempo-flag slow">lenta demais</span>' : '');
         return `<div class="set-log-row"><span>Série ${i+1}</span><span>${txt}${flag}</span></div>`;
       }).join('');
@@ -2369,7 +2369,7 @@ function renderExerciseCard(ex, hist){
       lines.push(`${ex.name}:`);
       st.log.forEach((l,i)=>{
         if(l.skipped){ lines.push(`  Série ${i+1}: pulada`); return; }
-        const txt = ex.bodyweight ? (ex.isTime ? `${l.reps}s` : `${l.reps} reps`) : `${l.weight}kg × ${l.reps} reps`;
+        const txt = ex.bodyweight ? (ex.isTime ? `${l.reps}s` : `${l.reps} reps`) : `${l.weight}kg × ${l.reps} reps${l.durationSec ? ` — ${l.durationSec}s` : ''}`;
         const flag = l.tempoFlag === 'fast' ? ' (rápida demais)' : (l.tempoFlag === 'slow' ? ' (lenta demais)' : '');
         lines.push(`  Série ${i+1}: ${txt}${flag}`);
       });
