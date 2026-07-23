@@ -815,6 +815,10 @@
   // Divisão A/B por dia da semana: 0=dom,1=seg,2=ter,3=qua,4=qui,5=sex,6=sáb
   const DAY_SPLIT = { 1:'A', 2:'B', 3:'A', 4:'B', 5:'A' };
 
+  // Halteres soltos disponíveis na academia (kg, por peça) — usado pra travar as
+  // sugestões de peso nos valores que realmente existem, em vez de somar um
+  // incremento fixo que pode cair num peso que não existe (ex: 16kg).
+  const DUMBBELL_WEIGHTS = [1,3,5,10,15,20];
   const EXERCISES = [
     { id:'ex0', block:'Cardio', name:'Bicicleta ergométrica', target:'1x 15 min', met:3.5,
       sets:1, repsTarget:900, restSeconds:0, startWeight:0, increment:300, bodyweight:true, isTime:true,
@@ -889,7 +893,7 @@
       regions:['front-abs','back-lowerback'] },
 
     { id:'ex6', block:'Circuito', name:'Afundo com halteres', target:'3x 10-15', met:5.0,
-      sets:3, repsTarget:10, restSeconds:60, startWeight:4, increment:1, bodyweight:false,
+      sets:3, repsTarget:10, restSeconds:60, startWeight:4, increment:1, bodyweight:false, weightOptions:DUMBBELL_WEIGHTS,
       muscle:'Quadríceps, glúteo e posteriores de coxa da perna da frente',
       objective:'Força unilateral de pernas e equilíbrio',
       grip:'Halteres ao lado do corpo, pegada neutra, braços relaxados',
@@ -909,7 +913,7 @@
       link:'https://www.youtube.com/watch?v=2YebbYuuBJQ',
       regions:['back-upperback'] },
     { id:'ex11', block:'Circuito', name:'Elevação lateral com halteres', target:'3x 12-15', met:3.0,
-      sets:3, repsTarget:12, restSeconds:45, startWeight:3, increment:0.5, bodyweight:false,
+      sets:3, repsTarget:12, restSeconds:45, startWeight:3, increment:0.5, bodyweight:false, weightOptions:DUMBBELL_WEIGHTS,
       muscle:'Deltoide lateral (parte de fora do ombro)',
       objective:'Largura e definição de ombro',
       grip:'Halteres ao lado do corpo, pegada neutra, cotovelos com leve flexão fixa, elevar até a altura do ombro',
@@ -929,7 +933,7 @@
       link:'https://www.youtube.com/watch?v=y6juG3XuRe4',
       regions:['front-quad'] },
     { id:'ex12', block:'Circuito', name:'Rosca direta com halteres', target:'3x 10-15', met:3.0,
-      sets:3, repsTarget:12, restSeconds:45, startWeight:5, increment:1, bodyweight:false,
+      sets:3, repsTarget:12, restSeconds:45, startWeight:5, increment:1, bodyweight:false, weightOptions:DUMBBELL_WEIGHTS,
       muscle:'Bíceps braquial',
       objective:'Força e definição de bíceps',
       grip:'Em pé, halteres ao lado do corpo, palmas voltadas pra frente, cotovelos fixos junto ao corpo',
@@ -1237,7 +1241,7 @@
   // sugerir o próximo salto de peso. Só depois de fechar 15 reps limpo em todas
   // as séries é que sugere +1kg (menor peça disponível) e volta pra 10 reps.
   const REP_LADDER = [10,12,15];
-  const LADDER_EXERCISE_IDS = ['ex1','ex2','ex3','ex4','ex10'];
+  const LADDER_EXERCISE_IDS = ['ex1','ex2','ex3','ex4','ex10','ex6','ex11','ex12'];
 
   function computeSuggestion(ex, hist){
     const entries = hist[ex.id] || [];
@@ -1255,18 +1259,34 @@
     const last = entries[0];
 
     if(onLadder){
-      const lastRepTarget = REP_LADDER.includes(last.repTarget) ? last.repTarget : REP_LADDER[0];
+      // Exercícios com halteres soltos (peças fixas, sem meio-termo) usam uma
+      // escada de reps mais longa: em vez de pular de peso assim que fechar 15
+      // reps, primeiro passa por um degrau extra de 18 reps na mesma carga —
+      // só troca de peça depois disso, já que qualquer salto disponível
+      // (ex: 15kg→20kg) tende a ser proporcionalmente grande.
+      const stages = ex.weightOptions ? [10,12,15,18] : REP_LADDER;
+      const lastRepTarget = stages.includes(last.repTarget) ? last.repTarget : stages[0];
       const metThis = last.minReps != null && last.minReps >= lastRepTarget;
       if(metThis){
-        const idx = REP_LADDER.indexOf(lastRepTarget);
-        if(idx < REP_LADDER.length - 1){
-          const nextReps = REP_LADDER[idx+1];
+        const idx = stages.indexOf(lastRepTarget);
+        if(idx < stages.length - 1){
+          const nextReps = stages[idx+1];
           return { value: last.weight, repTarget: nextReps, badge:'reps-up',
             note: `Bateu ${lastRepTarget} reps limpo em todas as séries — hoje o alvo é ${nextReps} reps, mesma carga (${last.weight}kg).` };
         }
-        const nextWeight = last.weight + ex.increment;
+        let nextWeight;
+        if(ex.weightOptions){
+          const found = ex.weightOptions.find(w => w > last.weight);
+          nextWeight = found != null ? found : last.weight;
+        } else {
+          nextWeight = last.weight + ex.increment;
+        }
+        if(nextWeight === last.weight){
+          return { value: last.weight, repTarget: lastRepTarget, badge:'hold',
+            note: `Já está no maior peso disponível (${last.weight}kg) — mantendo.` };
+        }
         return { value: nextWeight, repTarget: REP_LADDER[0], badge:'up',
-          note: `Bateu 15 reps limpo — hora de subir pra ${nextWeight}kg e voltar pra ${REP_LADDER[0]} reps.` };
+          note: `Bateu ${lastRepTarget} reps limpo — hora de subir pra ${nextWeight}kg (peça disponível) e voltar pra ${REP_LADDER[0]} reps.` };
       }
       return { value: last.weight, repTarget: lastRepTarget, badge:'hold',
         note: `Mantendo ${last.weight}kg até fechar ${lastRepTarget} reps limpo em todas as séries.` };
@@ -1292,8 +1312,12 @@
 
   function tempoFlagFor(ex, reps, durationSec){
     if(ex.isTime || !reps || reps <= 0) return null;
-    const expectedMin = reps * 1.5;
-    const expectedMax = reps * 6;
+    // Faixa baseada em Schoenfeld et al. (2015): repetições entre 0,5s e 8s produzem
+    // ganhos hipertróficos similares. Usamos 1s como piso (abaixo disso é quase certo
+    // que está usando embalo/momento) e 8s como teto (limite superior do estudo —
+    // além disso já não é mais "tempo sob tensão", é pausa entre reps).
+    const expectedMin = reps * 1;
+    const expectedMax = reps * 8;
     if(durationSec < expectedMin) return 'fast';
     if(durationSec > expectedMax) return 'slow';
     return null;
